@@ -1,17 +1,71 @@
 from functools import cache
 import requests
 
+# --------
+from dataclasses import dataclass, field
+
+@dataclass
+class Route:
+    name: str
+    id: str
+    stops: list = field(default_factory=list)
+
+@dataclass
+class Stop:
+    name: str
+    route_associations: list = field(default_factory=list)
+
+# --------
+
 class DataProvider():
     pass
 
 class MBTADataProvider():
-    pass
+    API_BASE_URL = "https://api-v3.mbta.com/"
 
-class Route:
-    pass
+    def get_all_routes(self):
+        method_route = "routes?filter[type]=0,1"       
+        route_list = self.get_api_results(method_route)
 
-class Stop:
-    pass
+        routes = []
+        for route in route_list:
+            route_details = route['attributes']
+            route_name = route_details['long_name']
+        
+            routes.append(Route(
+                name=route_name,
+                id=route['id']
+            ))
+
+        return routes
+
+
+    def get_stops_for_route(self, route_id):
+        method_route = f"stops?filter[route]={route_id}"
+        stop_list = self.get_api_results(method_route)
+     
+        stops = []
+        for stop in stop_list:
+            stop_attributes = stop['attributes']
+            stop_name = stop_attributes['name']
+
+            stops.append(Stop(
+                name=stop_name
+            ))
+            
+        return stops
+    
+
+    def get_api_results(self, endpoint):
+        url = self.API_BASE_URL + endpoint
+        
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            return response.json()['data']
+        else:
+            raise Exception(f"API Unavailable - Status code: {response.status_code}")
+
 
 
 class TransitMap():
@@ -20,62 +74,43 @@ class TransitMap():
     data_provider = None
     
     def __init__(self, data_provider=None) -> None:
-        pass
-    
+        self.data_provider = data_provider
 
-    def load_routes(self):
-        # We don't need to load this again
-        if self.routes:
-            return
-        
-        route_list = self.__get_all_routes()
+    @cache
+    def load_routes(self):       
+        route_list = self.data_provider.get_all_routes()
 
         for route in route_list:
-            route_details = route['attributes']
-            route_name = route_details['long_name']
-            self.routes[route_name] = route_details
-            self.routes[route_name]["id"] = route['id']
-            self.routes[route_name]["stops"] = []
+            self.routes[route.name] = route
             
-
+    @cache
     def load_stops(self):
         if not self.routes:
             raise Exception('No stops loaded')
         
-        for route_name, route_details in self.routes.items():
-            stop_list = self.__get_stops_for_route(route_details['id'])
-
-            for stop in stop_list:
-                stop_attributes = stop['attributes']
-                stop_name = stop_attributes['name']
-                
+        for route_name in self.routes.keys():
+            route = self.routes[route_name]
+            stops = self.data_provider.get_stops_for_route(route.id)
+           
+            for stop in stops:
                 # Add this stop to the route info
-                self.routes[route_name]["stops"].append(stop_name)
+                route.stops.append(stop.name)
 
-                # Add this stop if we haven't already seen it
-                if stop_name not in self.stops:
-                    stop_attributes['route_associations'] = [route_name]
-                    self.stops[stop_name] = stop_attributes
+                # Add this to the list of all stops if we haven't already seen it
+                if stop.name not in self.stops:
+                    stop.route_associations.append(route_name)
+                    self.stops[stop.name] = stop
                 else:
-                    self.stops[stop_name]['route_associations'].append(route_name)         
+                    # Otherwise, just append the list of routes
+                    self.stops[stop.name].route_associations.append(route_name)
 
-
-    def __get_all_routes(self):
-        # TODO: Error handling
-        URL = "https://api-v3.mbta.com/routes?filter[type]=0,1"
-        response = requests.get(URL)
-        #if response.status_code == 200:
-        return response.json()['data']
-
-
-    def __get_stops_for_route(self, route_id):
-        URL = f"https://api-v3.mbta.com/stops?filter[route]={route_id}"
-        response = requests.get(URL)
-        return response.json()['data']
 
     @cache
     def __get_route_stats(self):
-        stop_counts = [(name, len(details["stops"])) for name, details in self.routes.items()]
+        """
+        Helper function which returns a list of tuples (route name, count stops)
+        """
+        stop_counts = [(name, len(details.stops)) for name, details in self.routes.items()]
         return sorted(stop_counts, key=lambda stop: stop[1])
 
 
@@ -86,8 +121,8 @@ class TransitMap():
         """
         connecting_stops = {}
         for stop_name, stop_details in self.stops.items():
-            if len(stop_details['route_associations']) >= 2:
-                connecting_stops[stop_name] = stop_details['route_associations']
+            if len(stop_details.route_associations) >= 2:
+                connecting_stops[stop_name] = stop_details.route_associations
         return connecting_stops
 
 
@@ -121,7 +156,8 @@ class CLI():
     transit_map = None
 
     def __init__(self) -> None:
-        self.transit_map = TransitMap()
+        mbta_data_provider = MBTADataProvider()
+        self.transit_map = TransitMap(mbta_data_provider)
 
     def display_all_routes(self):
         self.transit_map.load_routes()
@@ -143,7 +179,7 @@ class CLI():
         """
         self.transit_map.load_routes()
         self.transit_map.load_stops()
-
+        
         print("\nThe subway route(s) with the most stops are: ", self.get_divider())
         
         for name, count in self.transit_map.get_routes_with_most_stops():
@@ -158,10 +194,7 @@ class CLI():
         for stop_name, connecting_routes in sorted(connecting_stops.items()):
             print(f"{stop_name} ({', '.join(sorted(connecting_routes))})")
 
-        
-
-
-
+      
 """
     Entrypoint to run when the script is directly invoked.
 """
