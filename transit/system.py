@@ -104,140 +104,46 @@ class TransitMap():
             raise Exception('Unknown Route!')
     
 
-    def get_routes_for_stops(self, origin: Stop, destination: Stop, checked = None) -> list:
+    def get_routes_for_stops(self, origin: Stop, destination: Stop, checked_routes = None) -> list:
         """
         Try to determine a list of routes between stops (can result in recursive calls)
         """
         results = []
 
-        if checked is None:
-            checked = []
+        if checked_routes is None:
+            checked_routes = []
 
         # Attempt to short-circuit the logic below by looking for any direct routes
-        common_routes = set(origin.route_associations).intersection(set(destination.route_associations))
-        if len(common_routes) > 0:
-            return list(common_routes)
-       
+        # This may seem a bit redundant, but as a base case, we want to exhaust all potential direct routes 
+        # before searching connections or possibly recursing
+        for route_string in origin.route_associations:
+            route = self.get_route_from_string(route_string)
+
+            if route.has_stops(origin, destination):
+                results.append(route_string)
+                return results
+           
         # Check all of the routes associated with the origin
         for route_string in origin.route_associations:
-            if route_string in checked:
+            if route_string in checked_routes:
                 continue
             
             # Keep track of what's already been checked
-            checked.append(route_string)
-
+            checked_routes.append(route_string)
             route = self.get_route_from_string(route_string)
 
             # If we didn't find a direct connection on this route, start looking for "intersecting routes"
-            for intersect_tpl in route.get_connections():
-                intersecting_route, intersection_stop = intersect_tpl
+            for connecting_route in route.get_connecting_routes():
+                if connecting_route in destination.route_associations:
+                    return [route_string, connecting_route]
 
-                if intersecting_route in checked:
-                    continue
+            # If all else fails, we need to look through connecting stops
+            for intersection_stop in route.get_connecting_stops():
+                result = self.get_routes_for_stops(intersection_stop, destination, checked_routes)
                 
-
-                # If we've found a route directly in the intersection, we're done
-                if intersecting_route in destination.route_associations:
-                    return [route_string, intersecting_route]
-                else:
-                    # Otherwise, we need to recurse and keep looking
-                    result = self.get_routes_for_stops(intersection_stop, destination, checked)
-                    
-                    if result:
-                        results.append(route_string)
-                        results.extend(result)
-                        return results
-        
+                if result:
+                    results.append(route_string)
+                    results.extend(result)
+                    return results
+    
         return []
-    
-# class OldTransitMap():
-#     @cache
-#     def load_routes(self):       
-#         route_list = self.data_provider.get_all_routes()
-
-#         for route in route_list:
-#             self.routes[route.name] = route
-            
-#     @cache
-#     def load_stops(self):
-#         if not self.routes:
-#             raise Exception('No stops loaded')
-        
-#         for route_name in self.routes.keys():
-#             route = self.routes[route_name]
-#             stops = self.data_provider.get_stops_for_route(route.id)
-           
-#             for stop in stops:
-#                 # Add this stop to the route info
-#                 route.stops.append(stop.name)
-
-#                 # Add this to the list of all stops if we haven't already seen it
-#                 if stop.name not in self.stops:
-#                     stop.route_associations.add(route_name)
-#                     self.stops[stop.name] = stop
-#                 else:
-#                     # Otherwise, just append the list of routes
-#                     self.stops[stop.name].route_associations.add(route_name)
-
-#     def get_hub_containing_routes(self, target_routes):
-#         for stop, routes in self.get_connecting_stops().items():
-#             if target_routes.issubset(routes):
-#                 return self.stops[stop]
-#         return None
-
-#     def get_hub_services_any_route(self, starting_route, target_routes):
-#         for stop, routes in self.get_connecting_stops().items():
-#             if starting_route in routes and target_routes.intersection(routes):
-#                 return self.stops[stop]
-#         return None
-
-#     def get_routes_for_stops(self, origin : Stop, destination: Stop):
-#         routes=[]
-
-#         direct_route = origin.route_associations.intersection(destination.route_associations)
-
-#         if direct_route:
-#             return direct_route        
-    
-#         for route in origin.route_associations:
-
-#             # If the destination is a hub, we can take any route to get there (the first should do it).
-#             if destination.name in self.get_connecting_stops():
-#                 print('Hub target: ', destination.route_associations)
-#                 hub_stop = self.get_hub_services_any_route(route, destination.route_associations)
-
-#             else:
-#                 # Otherwise, this is a regular stop and we need to make sure the hub services all 
-#                 # associated routes
-#                 target_routes = set([route]).union(destination.route_associations)
-#                 hub_stop = self.get_hub_containing_routes(target_routes)
-            
-#             if hub_stop is not None:
-#                 print("Found a hub that services these routes! ", hub_stop)
-#                 # Add the route for origin -> hub
-#                 routes.append(route)
-
-#                 # Find and add the route for hub -> destination
-#                 routes.append(self.get_routes_for_stops(hub_stop, destination))
-                
-#                 break
-            
-#         # If we still don't have a route, we need to keep trying
-#         if not routes:
-#             for stop, connecting_routes in self.get_connecting_stops().items():
-           
-#                 # Look for connecting stops that could get us to our destination
-#                 if connecting_routes.intersection(destination.route_associations):
-#                     possible_stop = self.stops[stop]
-#                     #print("\nPossible stop:", possible_stop)
-
-#                     # We need a different one than we already tried in the destination routes
-#                     if connecting_routes.difference(destination.route_associations):
-#                         routes.append(connecting_routes.difference(destination.route_associations))
-#                         routes.append(self.get_routes_for_stops(possible_stop, destination))
-                        
-#                         break
-
-#             # Since we're starting at the end            
-#             routes.insert(0, route)
-#         return routes

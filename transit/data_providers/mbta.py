@@ -15,10 +15,12 @@ class MBTADataProvider(BaseDataProvider):
         for route in route_list:
             route_details = route['attributes']
             route_name = route_details['long_name']
+            line_name = route['relationships']['line']['data']['id']
         
             routes.append(Route(
                 name=route_name,
-                id=route['id']
+                id=route['id'],
+                line_name=line_name
             ))
 
         return routes
