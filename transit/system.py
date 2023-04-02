@@ -1,7 +1,7 @@
 from functools import cache
 from transit.stop import Stop
 from transit.route import Route
-
+import logging
 
 class TransitMap():
     routes = {}
@@ -110,6 +110,9 @@ class TransitMap():
         """
         results = []
 
+        logging.info(f"Origin: {origin}")
+        logging.info(f"Destination: {destination}")
+
         if checked_routes is None:
             checked_routes = []
 
@@ -127,6 +130,7 @@ class TransitMap():
         for route_string in origin.route_associations:
             if route_string in checked_routes:
                 continue
+            logging.info(f"Checking route: {route_string}")
             
             # Keep track of what's already been checked
             checked_routes.append(route_string)
@@ -138,7 +142,19 @@ class TransitMap():
                     return [route_string, connecting_route]
 
             # If all else fails, we need to look through connecting stops
-            for intersection_stop in route.get_connecting_stops():
+            connecting_stops = route.get_connecting_stops()
+            logging.info(f"Connecting Stops: {connecting_stops}")
+            for intersection_stop in connecting_stops:
+                if intersection_stop == origin:
+                    continue
+
+               # If this stop ONLY contains connections to "same line" then we can skip it.
+                if self.route_serviced_by_same_line_as_stop(route, intersection_stop):
+                    logging.info(f"Skipping: {intersection_stop}")
+                    checked_routes.extend(intersection_stop.route_associations)
+                    continue
+
+                logging.info(f"Recursing: {intersection_stop}")
                 result = self.get_routes_for_stops(intersection_stop, destination, checked_routes)
                 
                 if result:
@@ -147,3 +163,14 @@ class TransitMap():
                     return results
     
         return []
+
+
+    def route_serviced_by_same_line_as_stop(self, route, stop):
+        routes = []
+
+        for r in stop.route_associations:
+            route = self.get_route_from_string(r)
+            if route.line_name not in routes:
+                routes.append(route.line_name)
+
+        return [route.line_name] == routes

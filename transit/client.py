@@ -15,6 +15,9 @@ class CLI():
 
     
     def display_all_routes(self):
+        """
+        Prints a list of all current Subway routes
+        """
         self.transit_map.load_routes()
         print("\nAll Subway routes: ", self.get_divider())
 
@@ -42,7 +45,7 @@ class CLI():
         for name, count in self.transit_map.get_routes_with_least_stops():
             print(f"{name}: {count}")
 
-        print("\nSubway stops that connect two or more routes: ", self.get_divider())
+        print("\nSubway stops which connect two or more routes: ", self.get_divider())
         connecting_stops = self.transit_map.get_connecting_stops()
         for stop_name, connecting_routes in sorted(connecting_stops.items()):
             print(f"{stop_name} ({', '.join(sorted(connecting_routes))})")
@@ -53,20 +56,30 @@ class CLI():
         Displays the prompt which asks users to enter their origin, destination
         """
         while True:
-            origin = input("Enter origin: ")
-            destination = input("Enter destination: ")
+            print(f"\n\nRoute Finder", self.get_divider())
+            origin_string = input("Enter origin: ")
 
-            if 'exit' in [origin.lower(), destination.lower()]:
+            # graceful exit
+            if 'exit' == origin_string.lower():
                 break
-            
-            self.get_travel_info(origin, destination)
 
+            destination_string = input("Enter destination: ")
 
-    def get_travel_info(self, origin_string, destination_string):      
-        print(f"\n{origin_string} -> {destination_string}", self.get_divider())
-        
-        # TODO: Error handling for missing
-        origin = self.transit_map.stops[origin_string]
-        destination = self.transit_map.stops[destination_string]
-        
-        print("\nFinal Result: ", self.transit_map.get_routes_for_stops(origin,destination))
+            try:
+                origin = self.transit_map.get_stop_from_string(origin_string)
+                destination = self.transit_map.get_stop_from_string(destination_string)
+            except:
+                print(f"Unknown origin -> destination: [{origin_string}] -> [{destination_string}]")
+                continue
+
+            try:
+                self.get_travel_info(origin, destination)
+            except Exception as e:
+                print(f"An error occurred: {e}")   
+    
+
+    def get_travel_info(self, origin : Stop, destination : Stop):
+        """
+        Wrapper around `get_routes_for_stops()`
+        """
+        print(f"\n{origin.name} to {destination.name} ->", ", ".join(self.transit_map.get_routes_for_stops(origin, destination)))
