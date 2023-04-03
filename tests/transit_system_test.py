@@ -69,12 +69,19 @@ def transit_system_fixture():
 def test_get_stop_from_string(transit_system_fixture: TransitMap):
     assert transit_system_fixture.get_stop_from_string('C').id == 3
 
+    with pytest.raises(Exception, match="Unknown Stop!"):
+        transit_system_fixture.get_stop_from_string('foo') 
+
 
 def test_get_route_from_string(transit_system_fixture: TransitMap):
     assert transit_system_fixture.get_route_from_string('Green').id == 100
 
 
-def test_get_connecting_routes(transit_system_fixture: TransitMap):
+    with pytest.raises(Exception, match="Unknown Route!"):
+        transit_system_fixture.get_route_from_string('bar') 
+
+
+def test_get_connecting_stops(transit_system_fixture: TransitMap):
    route = transit_system_fixture.get_route_from_string('Green')
    connections = route.get_connecting_stops()
 
@@ -82,6 +89,14 @@ def test_get_connecting_routes(transit_system_fixture: TransitMap):
    assert connections[0].name == 'B'
    assert connections[1].name == 'C'
    assert connections[2].name == 'D'
+
+
+def test_get_routes_with_most_stops(transit_system_fixture: TransitMap):
+    assert transit_system_fixture.get_routes_with_most_stops() == [('Green', 5)]
+
+
+def test_get_routes_with_least_stops(transit_system_fixture: TransitMap):
+    assert transit_system_fixture.get_routes_with_least_stops() == [('Blue', 2)]
 
 
 def test_route_serviced_by_same_line_as_stop(transit_system_fixture: TransitMap):

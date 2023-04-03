@@ -23,6 +23,9 @@ class TransitMap():
 
     @cache     
     def load_stops(self):
+        """
+        Loads all the stop information, will lazy-load routes if not already populated
+        """
         if not self.routes:
             self.load_routes()
         
@@ -65,8 +68,9 @@ class TransitMap():
 
 
     def get_routes_with_most_stops(self):
-        # TODO: fix this
-        # There can be ties, so we may return multiples
+        """
+        Since there can be ties, this is slightly more advanced than just getting the last element of a sorted list.
+        """
         stop_list = []
         max_value = None
         route_stats = self.__get_route_stats()
@@ -86,11 +90,34 @@ class TransitMap():
     
     
     def get_routes_with_least_stops(self):
-        # TODO: fix this
-        return [self.__get_route_stats()[0]]
+        """
+        Since there can be ties, this is slightly more advanced than just getting the first of a sorted list.
+        """
+        stop_list = []
+        min_value = None
+
+        route_stats = self.__get_route_stats()
+
+        for route_stat in route_stats:
+            line, count = route_stat
+
+            if min_value is None:
+                min_value = count
+                stop_list.append(route_stat)
+                continue
+
+            if count <= min_value:
+                stop_list.append(route_stat)
+            else:
+                break
+        
+        return stop_list
 
 
     def get_stop_from_string(self, stop_string) -> Stop:
+        """
+        Wrapper around stop dictionary lookup -> raises an exception if not found
+        """
         if stop_string in self.stops:
             return self.stops[stop_string]
         else:
@@ -98,6 +125,9 @@ class TransitMap():
 
 
     def get_route_from_string(self, route_string) -> Route:
+        """
+        Wrapper around route dictionary lookup -> raises an exception if not found
+        """
         if route_string in self.routes:
             return self.routes[route_string]
         else:
@@ -166,6 +196,9 @@ class TransitMap():
 
 
     def route_serviced_by_same_line_as_stop(self, route, stop):
+        """
+        Determine if a stop only is serviced by the same line as the provided route
+        """
         routes = []
 
         for r in stop.route_associations:

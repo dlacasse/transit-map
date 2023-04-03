@@ -2,7 +2,7 @@ from transit.client import CLI
 import logging
 
 """
-    Entrypoint to run when the script is directly invoked.
+    Entrypoint to run when the CLI program when this script is directly invoked.
 """
 if __name__ == "__main__":
     transit_cli = CLI()

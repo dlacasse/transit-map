@@ -11,6 +11,9 @@ class Route:
 
 
     def has_stop(self, stop : Stop) -> bool:
+        """
+        Check if this route contains the provided stop
+        """
         if stop in self.stops:
             return True
         return False
@@ -18,7 +21,7 @@ class Route:
 
     def has_stops(self, stop1, stop2):
         """
-        Check if this route contains stops (we could make this accept *args)
+        Check if this route contains both stops (we could probably make this accept *args)
         """
         return self.has_stop(stop1) and self.has_stop(stop2)
        

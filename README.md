@@ -1,23 +1,35 @@
 # Transit Map
 
 ## Overview
+CLI program to interact with the MBTA subway map (and theoretically others). Running the program (see below) will output information for the first two questions then start a prompt where you can enter origin/destination stops to get a possible list of routes to travel between them.
 
+## How To Run
+* I used python3 + pipenv for this project
+* You can install the dependencies prior to running by running `pipenv install`
 
-## How to run
-### Running the program
+### Running the tests:
+`pipenv run pytest`
+
+### Running the cli app:
 `pipenv run python3 main.py`
 
-### Running the tests
-`pipenv run pytest`
+*Note:* You can exit the program by typing "exit" for the origin or issuing a SIGINT (control + c).
 
 
 ## Assumptions
 * The API breaks out the different Green Line (and Red Line) branches into separate routes. There might be times when displaying this as one "line" would be more intuitive, but I think it is actually more realistic to keep them separate. It simplifies the reality that while they share some stops, they diverge -- you can never get to Riverside directly on a Green Line E train.
+* The code is structured to be modular, but the `MBTADataProvider` is hard-coded in the CLI class. To support multiple, we'd need to revisit this and make it either selectable by the user or based on some sort of config / CLI arguments.
+
+
+## What's next, given more time
+* Additional test coverage -- I mostly focused on testing the TransitMap / Routes classes since that's where most of the complexity lies.
+* Additional input sanitization / error handling
+* Better error handling around API failures
 
 
 ## Questions 1
 For this implementation, I chose to have the API server do the filtering (e.g. `filter[type]=0,1`). The key driving factors that facilitated this decision for me were:
-1. The data set is fairly large unfiltered -- seems like a bit of a waste if we're going to use any of it. If we need it in the future, it'll be easy enough to extend the solution to add it.
+1. The data set is fairly large when unfiltered -- seems like a bit of a waste if we're going to use any of it. If we need it in the future, it'll be easy enough to extend the solution to add it.
 2. The filter functionality is a well-documented documented parameter in the documentation for the API and therefore it seems reasonable to depend on this feature.
 
 Output:
@@ -35,10 +47,12 @@ Red Line
 ```
 
 ## Question 2
+The output below attempts to answer the questions posed under Question 2. Note: For the most stops, there is a tie so I decided to allow the program to return multiple routes
+
 
 ### Output
 ```
-he subway route(s) with the most stops are:
+The subway route(s) with the most stops are:
 ==============================
 Green Line E: 25
 Green Line D: 25
@@ -66,19 +80,49 @@ State (Blue Line, Orange Line)
 ```
 
 ## Question 3
-
+The solution uses an algorithm in the style of depth-first search to find a feasible route between two stops. If we wanted to actually make this optimized for fewest stops (for example) we'd need to do a bit of work to enhance the algorithm.
 
 ### Output
-
-#### Examples
-```python
-#transit_cli.get_travel_info('Davis', 'Kendall/MIT')
-#transit_cli.get_travel_info('Ashmont', 'Riverside')
-#transit_cli.get_travel_info('Ashmont', 'Copley')
-#transit_cli.get_travel_info('Ashmont', 'Hynes Convention Center')
-#transit_cli.get_travel_info('Ashmont', 'Government Center') 
-#transit_cli.get_travel_info('Broadway', 'Airport')
-#transit_cli.get_travel_info('Riverside', 'Back Bay')
-#transit_cli.get_travel_info('Mattapan', 'Wood Island')
 ```
+Route Finder
+==============================
+Enter origin: Davis
+Enter destination: Kendall/MIT
 
+Davis to Kendall/MIT -> Red Line
+
+Route Finder
+==============================
+Enter origin: Ashmont
+Enter destination: Riverside
+
+Ashmont to Riverside -> Red Line, Green Line D
+
+Route Finder
+==============================
+Enter origin: Ashmont
+Enter destination: Copley
+
+Ashmont to Copley -> Red Line, Green Line B
+
+Route Finder
+==============================
+Enter origin: Ashmont
+Enter destination: Hynes Convention Center
+
+Ashmont to Hynes Convention Center -> Red Line, Green Line B
+
+Route Finder
+==============================
+Enter origin: Broadway
+Enter destination: Airport
+
+Broadway to Airport -> Red Line, Green Line B, Blue Line
+
+Route Finder
+==============================
+Enter origin: Mattapan
+Enter destination: Wood Island
+
+Mattapan to Wood Island -> Mattapan Trolley, Red Line, Green Line B, Blue Line
+```

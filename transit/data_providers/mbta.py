@@ -8,6 +8,9 @@ class MBTADataProvider(BaseDataProvider):
     API_BASE_URL = "https://api-v3.mbta.com/"
 
     def get_all_routes(self):
+        """
+        Load all routes from the API
+        """
         method_route = "routes?filter[type]=0,1"       
         route_list = self.get_api_results(method_route)
 
@@ -27,6 +30,9 @@ class MBTADataProvider(BaseDataProvider):
 
 
     def get_stops_for_route(self, route_id):
+        """
+        Load all stops for a given route
+        """
         method_route = f"stops?filter[route]={route_id}"
         stop_list = self.get_api_results(method_route)
      
@@ -43,6 +49,9 @@ class MBTADataProvider(BaseDataProvider):
     
 
     def get_api_results(self, endpoint):
+        """
+        Helper method to make actual API calls
+        """
         url = self.API_BASE_URL + endpoint
         
         response = requests.get(url)
